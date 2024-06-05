@@ -261,7 +261,8 @@ def do_train(cfg, model, resume=False):
 
         # perform teacher EMA update
 
-        model.update_teacher(mom)
+        if not model.distill:
+            model.update_teacher(mom)
 
         # logging
 
@@ -296,6 +297,7 @@ def do_train(cfg, model, resume=False):
 
 def main(args):
     cfg = setup(args)
+    cfg.distill = cfg.get('distill', False)
 
     model = SSLMetaArch(cfg).to(torch.device("cuda"))
     model.prepare_for_distributed_training()

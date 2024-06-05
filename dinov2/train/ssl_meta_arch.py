@@ -32,6 +32,7 @@ class SSLMetaArch(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
+        self.distill = cfg.distill
         self.fp16_scaler = ShardedGradScaler() if cfg.compute_precision.grad_scaler else None
 
         student_model_dict = dict()
@@ -392,9 +393,17 @@ class SSLMetaArch(nn.Module):
         if has_batchnorms(self.student):
             raise NotImplementedError
         # below will synchronize all student subnetworks across gpus:
-        for k, v in self.student.items():
-            self.teacher[k].load_state_dict(self.student[k].state_dict())
-            student_model_cfg = self.cfg.compute_precision.student[k]
-            self.student[k] = get_fsdp_wrapper(student_model_cfg, modules_to_wrap={BlockChunk})(self.student[k])
-            teacher_model_cfg = self.cfg.compute_precision.teacher[k]
-            self.teacher[k] = get_fsdp_wrapper(teacher_model_cfg, modules_to_wrap={BlockChunk})(self.teacher[k])
+        if self.distill:
+            for k, v in self.student.items():
+                student_model_cfg = self.cfg.compute_precision.student[k]
+                self.student[k] = get_fsdp_wrapper(student_model_cfg, modules_to_wrap={BlockChunk})(self.student[k])
+            for k, v in self.teacher.items():
+                teacher_model_cfg = self.cfg.compute_precision.teacher[k]
+                self.teacher[k] = get_fsdp_wrapper(teacher_model_cfg, modules_to_wrap={BlockChunk})(self.teacher[k])
+        else:
+            for k, v in self.student.items():
+                self.teacher[k].load_state_dict(self.student[k].state_dict())
+                student_model_cfg = self.cfg.compute_precision.student[k]
+                self.student[k] = get_fsdp_wrapper(student_model_cfg, modules_to_wrap={BlockChunk})(self.student[k])
+                teacher_model_cfg = self.cfg.compute_precision.teacher[k]
+                self.teacher[k] = get_fsdp_wrapper(teacher_model_cfg, modules_to_wrap={BlockChunk})(self.teacher[k])
