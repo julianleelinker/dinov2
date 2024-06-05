@@ -1,0 +1,5 @@
+
+    python dinov2/train/train.py \
+    --config-file dinov2/configs/train/distill-vitl14-to-vits16.yaml \
+    --output-dir /mnt/data-home/julian/tiip/dinov2/ \
+    train.dataset_path=ImageNet:split=TRAIN:root=/mnt/data-home/julian/tiny-imagenet-200:extra=/mnt/data-home/julian/tiny-imagenet-200-dinov2extra
