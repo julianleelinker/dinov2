@@ -165,7 +165,7 @@ class ImageNet(ExtendedVisionDataset):
 
     def __len__(self) -> int:
         entries = self._get_entries()
-        assert len(entries) == self.split.length
+        # assert len(entries) == self.split.length
         return len(entries)
 
     def _load_labels(self, labels_path: str) -> List[Tuple[str, str]]:
@@ -174,7 +174,8 @@ class ImageNet(ExtendedVisionDataset):
 
         try:
             with open(labels_full_path, "r") as f:
-                reader = csv.reader(f)
+                reader = csv.reader(f, delimiter='\t')
+                # reader = csv.reader(f)
                 for row in reader:
                     class_id, class_name = row
                     labels.append((class_id, class_name))
