@@ -1,5 +1,6 @@
 build/
 dist/
+dinov2/models/yolov9/utils/
 *.egg-info/
 **/__pycache__/
 
