@@ -22,6 +22,9 @@ from dinov2.utils.utils import CosineScheduler
 
 from dinov2.train.ssl_meta_arch import SSLMetaArch
 
+# from dinov2.models.yolov9.utils.general import check_yaml
+from yolo import DetectionModel as Yolov9SSL
+
 
 torch.backends.cuda.matmul.allow_tf32 = True  # PyTorch 1.12 sets this to False by default
 logger = logging.getLogger("dinov2")
@@ -54,6 +57,7 @@ For python-based LazyConfig, use "path.key=value".
         type=str,
         help="Output directory to save logs and checkpoints",
     )
+    parser.add_argument('--cfg-yolo', type=str, default='yolo.yaml', help='model.yaml')
 
     return parser
 
@@ -298,6 +302,17 @@ def do_train(cfg, model, resume=False):
 def main(args):
     cfg = setup(args)
     cfg.distill = cfg.get('distill', False)
+
+
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--cfg', type=str, default='yolo.yaml', help='model.yaml')
+    # opt = parser.parse_args()
+    import ipdb; ipdb.set_trace()
+    # args.cfg_yolo = check_yaml(args.cfg_yolo)  # check YAML
+    # print_args(vars(opt))
+
+    student_backbone = Yolov9SSL(args.cfg_yolo)
+    teacher_backbone = Yolov9SSL(args.cfg_yolo)
 
     model = SSLMetaArch(cfg).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
