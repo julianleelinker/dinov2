@@ -300,6 +300,13 @@ def do_train(cfg, model, resume=False):
 
 
 def main(args):
+    # TODO embed_dim as config
+    # TOOO distributed training
+    # TODO deal with cls token and dino head, currently use wrong cls token
+    # TODO enable batchnorm along with backbone FSDP
+    # TODO global and local crop size in config
+    # TODO check use which image size and corresponding embed_dim
+    # TODO more fundamental change with yolo grid / patch
     cfg = setup(args)
     cfg.distill = cfg.get('distill', False)
 
@@ -307,14 +314,19 @@ def main(args):
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--cfg', type=str, default='yolo.yaml', help='model.yaml')
     # opt = parser.parse_args()
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     # args.cfg_yolo = check_yaml(args.cfg_yolo)  # check YAML
     # print_args(vars(opt))
 
     student_backbone = Yolov9SSL(args.cfg_yolo)
     teacher_backbone = Yolov9SSL(args.cfg_yolo)
+    yolo_input = {
+        'student_backbone': student_backbone,
+        'teacher_backbone': teacher_backbone,
+        'embed_dim': 98,
+    }
 
-    model = SSLMetaArch(cfg).to(torch.device("cuda"))
+    model = SSLMetaArch(cfg, yolo_input=yolo_input).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
 
     logger.info("Model:\n{}".format(model))

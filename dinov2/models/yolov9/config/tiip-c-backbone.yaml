@@ -123,5 +123,9 @@ head:
   #  [[31, 34, 37, 16, 19, 22], 1, DualDDetect, [nc]],  # DualDDetect(A3, A4, A5, P3, P4, P5)
   
   # dummy head for SSL
-   [[31, 34, 37, 16, 19, 22], 1, SSL, []],  # DualDDetect(A3, A4, A5, P3, P4, P5)
+  #  [[31, 34, 37, 16, 19, 22], 1, SSL, []],  # DualDDetect(A3, A4, A5, P3, P4, P5)
+  
+  # dummy easy head for SSL
+   [[37, 22], 1, SSL, []],  # DualDDetect(A3, A4, A5, P3, P4, P5)
+
   ]

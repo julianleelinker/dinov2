@@ -192,7 +192,14 @@ class SSL(nn.Module):
         super().__init__()
 
     def forward(self, x):
-        return x
+        for i in range(len(x)):
+            print(x[i].shape)
+            x[i] = torch.reshape(x[i], (x[i].shape[0], x[i].shape[1], -1))
+        patch_tokens = torch.cat(x, dim=2)
+        return {
+            "x_norm_clstoken":  torch.sum(patch_tokens, axis=1), # TODO wrong here
+            "x_norm_patchtokens": patch_tokens
+        }
 
 
 class DualDDetect(nn.Module):
@@ -584,7 +591,7 @@ class DetectionModel(BaseModel):
         self.info()
         LOGGER.info('')
 
-    def forward(self, x, augment=False, profile=False, visualize=False):
+    def forward(self, x, augment=False, profile=False, visualize=False, is_training=False):
         if augment:
             return self._forward_augment(x)  # augmented inference, None
         return self._forward_once(x, profile, visualize)  # single-scale inference, train
@@ -757,6 +764,7 @@ if __name__ == '__main__':
     # Create model
     im = torch.rand(opt.batch_size, 3, 640, 640).to(device)
     model = Model(opt.cfg).to(device)
+    import ipdb; ipdb.set_trace()
     model.eval()
 
     # Options
