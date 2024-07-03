@@ -27,9 +27,12 @@ except ImportError:
 
 logger = logging.getLogger("dinov2")
 
+DEBUG = False
+
 
 def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
-    unit = torch.ones((patch_size, patch_size), dtype=bool).to(mask.device)
+    # unit = torch.ones((patch_size, patch_size), dtype=bool).to(mask.device)
+    unit = torch.ones((patch_size, patch_size), dtype=bool).cuda(non_blocking=True)
     tmp_mask = mask.reshape((-1, n_patch_grids, n_patch_grids))
     ans = torch.kron(tmp_mask, unit)
     ans = ans.reshape(-1, 1, n_patch_grids*patch_size, n_patch_grids*patch_size)
@@ -174,14 +177,16 @@ class SSLMetaArch(nn.Module):
             x, n_global_crops_teacher = global_crops, n_global_crops
             teacher_backbone_output_dict = self.teacher.backbone(x, is_training=True)
             teacher_cls_tokens = teacher_backbone_output_dict["x_norm_clstoken"]
-            print('teacher_backbone_output_dict["x_norm_clstoken"]', '*'*20)
-            print(teacher_cls_tokens.shape)
+            if DEBUG:
+                print('teacher_backbone_output_dict["x_norm_clstoken"]', '*'*20)
+                print(teacher_cls_tokens.shape)
             teacher_cls_tokens = teacher_cls_tokens.chunk(n_global_crops_teacher)
             # watch out: these are chunked and cat'd in reverse so A is matched to B in the global crops dino loss
             teacher_cls_tokens = torch.cat((teacher_cls_tokens[1], teacher_cls_tokens[0]))
             ibot_teacher_patch_tokens = teacher_backbone_output_dict["x_norm_patchtokens"]
-            print('teacher_backbone_output_dict["x_norm_patchtokens"]', '*'*20)
-            print(ibot_teacher_patch_tokens.shape)
+            if DEBUG:
+                print('teacher_backbone_output_dict["x_norm_patchtokens"]', '*'*20)
+                print(ibot_teacher_patch_tokens.shape)
             _dim = ibot_teacher_patch_tokens.shape[-1]
             n_cls_tokens = teacher_cls_tokens.shape[0]
 
@@ -259,6 +264,7 @@ class SSLMetaArch(nn.Module):
         else:
             # self.mask_token.to(x.dtype).unsqueeze(0)
             # x = torch.where(masks.unsqueeze(-1), self.mask_token.to(x.dtype).unsqueeze(0), x)
+            # import ipdb; ipdb.set_trace()
             global_crops = apply_mask_on_batch_images(global_crops, masks, 14, 16)
             student_global_backbone_output_dict = self.student.backbone(global_crops, is_training=True)
             student_local_backbone_output_dict = self.student.backbone(local_crops, is_training=True)
@@ -268,21 +274,24 @@ class SSLMetaArch(nn.Module):
         # 1a: local crops cls tokens
         student_local_cls_tokens = student_local_backbone_output_dict["x_norm_clstoken"]
         inputs_for_student_head_list.append(student_local_cls_tokens.unsqueeze(0))
-        print('student_local_backbone_output_dict["x_norm_clstoken"]', '*'*20)
-        print(student_local_cls_tokens.shape)
+        if DEBUG:
+            print('student_local_backbone_output_dict["x_norm_clstoken"]', '*'*20)
+            print(student_local_cls_tokens.shape)
 
         # 1b: global crops cls tokens
         student_global_cls_tokens = student_global_backbone_output_dict["x_norm_clstoken"]
         inputs_for_student_head_list.append(student_global_cls_tokens.unsqueeze(0))
-        print('student_global_backbone_output_dict["x_norm_clstoken"]', '*'*20)
-        print(student_global_cls_tokens.shape)
+        if DEBUG:
+            print('student_global_backbone_output_dict["x_norm_clstoken"]', '*'*20)
+            print(student_global_cls_tokens.shape)
 
         # 1c: global crops patch tokens
         if do_ibot:
             _dim = student_global_backbone_output_dict["x_norm_clstoken"].shape[-1]
             ibot_student_patch_tokens = student_global_backbone_output_dict["x_norm_patchtokens"]
-            print('student_global_backbone_output_dict["x_norm_patchtokens"]', '*'*20)
-            print(ibot_student_patch_tokens.shape)
+            if DEBUG:
+                print('student_global_backbone_output_dict["x_norm_patchtokens"]', '*'*20)
+                print(ibot_student_patch_tokens.shape)
             buffer_tensor_patch_tokens = ibot_student_patch_tokens.new_zeros(upperbound, _dim)
             buffer_tensor_patch_tokens[:n_masked_patches].copy_(
                 torch.index_select(ibot_student_patch_tokens.flatten(0, 1), dim=0, index=mask_indices_list)
@@ -295,7 +304,7 @@ class SSLMetaArch(nn.Module):
                 ]
 
         # 2: run
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         _attn_bias, cat_inputs = fmha.BlockDiagonalMask.from_tensor_list(inputs_for_student_head_list)
         outputs_list = _attn_bias.split(self.student.dino_head(cat_inputs))
 

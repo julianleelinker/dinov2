@@ -188,17 +188,21 @@ class DualDetect(nn.Module):
 
 
 class SSL(nn.Module):
-    def __init__(self):
+    def __init__(self, ch=512, embed_dim=98):
+        # ch align to input layer 9
+        # nc align to output dino head
         super().__init__()
+        self.classify = Classify(ch, embed_dim)  # Classify()
 
     def forward(self, x):
-        for i in range(len(x)):
-            print(x[i].shape)
+        for i in range(1, len(x)):
+            # taking simplify input here
             x[i] = torch.reshape(x[i], (x[i].shape[0], x[i].shape[1], -1))
-        patch_tokens = torch.cat(x, dim=2)
+        cls_token = self.classify(x[0])
+        patch_tokens = torch.cat(x[1:], dim=2)
         return {
-            "x_norm_clstoken":  torch.sum(patch_tokens, axis=1), # TODO wrong here
-            "x_norm_patchtokens": patch_tokens
+            "x_norm_clstoken": cls_token,
+            "x_norm_patchtokens": patch_tokens 
         }
 
 
@@ -764,6 +768,9 @@ if __name__ == '__main__':
     # Create model
     im = torch.rand(opt.batch_size, 3, 640, 640).to(device)
     model = Model(opt.cfg).to(device)
+    # cls_model = ClassificationModel(model=model).to(device)
+    # tmp = cls_model(im)
+    tmp = model(im)
     import ipdb; ipdb.set_trace()
     model.eval()
 
