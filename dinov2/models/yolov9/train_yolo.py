@@ -24,6 +24,7 @@ from dinov2.train.ssl_meta_arch import SSLMetaArch
 
 # from dinov2.models.yolov9.utils.general import check_yaml
 from yolo import DetectionModel as Yolov9SSL
+from dinov2.data.datasets import Tiip
 
 
 torch.backends.cuda.matmul.allow_tf32 = True  # PyTorch 1.12 sets this to False by default
@@ -195,8 +196,13 @@ def do_train(cfg, model, resume=False):
 
     # setup data loader
 
-    dataset = make_dataset(
-        dataset_str=cfg.train.dataset_path,
+    # dataset = make_dataset(
+    #     dataset_str=cfg.train.dataset_path,
+    #     transform=data_transform,
+    #     target_transform=lambda _: (),
+    # )
+    dataset = Tiip(
+        root='/mnt/data-home/julian/tiip/convert_data',
         transform=data_transform,
         target_transform=lambda _: (),
     )
@@ -301,12 +307,15 @@ def do_train(cfg, model, resume=False):
 
 def main(args):
     # TODO embed_dim as config
-    # TOOO distributed training
+    # TOOO distributed training, check batch norm
     # TODO deal with cls token and dino head, currently use wrong cls token
     # TODO enable batchnorm along with backbone FSDP
     # TODO global and local crop size in config
-    # TODO check use which image size and corresponding embed_dim
+    # TODO check use what image size and corresponding embed_dim
     # TODO more fundamental change with yolo grid / patch
+    # TODO develop pathtoken use all input of ddetect head
+    # TODO larger image size, random crop
+    # TODO check offical epoch lengths and scheduling
     cfg = setup(args)
     cfg.distill = cfg.get('distill', False)
 
@@ -320,10 +329,12 @@ def main(args):
 
     student_backbone = Yolov9SSL(args.cfg_yolo)
     teacher_backbone = Yolov9SSL(args.cfg_yolo)
+    embed_dim = int(2*(cfg.crops.global_crops_size/32)**2)
+    print(embed_dim)
     yolo_input = {
         'student_backbone': student_backbone,
         'teacher_backbone': teacher_backbone,
-        'embed_dim': 98,
+        'embed_dim': embed_dim,
     }
 
     model = SSLMetaArch(cfg, yolo_input=yolo_input).to(torch.device("cuda"))
