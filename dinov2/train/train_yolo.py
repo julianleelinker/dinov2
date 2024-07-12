@@ -15,7 +15,7 @@ import torch
 from dinov2.data import SamplerType, make_data_loader, make_dataset
 from dinov2.data import collate_data_and_cast, DataAugmentationDINO, MaskingGenerator
 # import dinov2.distributed as distributed
-from dinov2.fsdp import FSDPCheckpointer
+# from dinov2.fsdp import FSDPCheckpointer
 from fvcore.common.checkpoint import Checkpointer
 from dinov2.logging import MetricLogger
 from dinov2.utils.config import setup
@@ -142,7 +142,7 @@ def do_test(cfg, model, iteration):
 
 def do_train(cfg, model, resume=False):
     model.train()
-    inputs_dtype = torch.half
+    inputs_dtype = torch.float
     # fp16_scaler = model.fp16_scaler  # for mixed precision training
     fp16_scaler = None
 
@@ -322,7 +322,6 @@ def main(args):
     # TODO develop pathtoken use all input of ddetect head
     # TODO larger image size, random crop
     # TODO check offical epoch lengths and scheduling
-    # TODO reverse to float32, search for half() and delete
     cfg = setup(args)
 
     yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8n-ssl.yaml'
@@ -334,8 +333,6 @@ def main(args):
     teacher_backbone, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
     student_backbone.cuda()
     teacher_backbone.cuda()
-    student_backbone.half()
-    teacher_backbone.half()
     # import ipdb; ipdb.set_trace()
     # embed_dim = int(2*(cfg.crops.global_crops_size/32)**2)
     embed_dim = 49
@@ -352,7 +349,7 @@ def main(args):
     logger.info("Model:\n{}".format(model))
     if args.eval_only:
         iteration = (
-            FSDPCheckpointer(model, save_dir=cfg.train.output_dir)
+            Checkpointer(model, save_dir=cfg.train.output_dir)
             .resume_or_load(cfg.MODEL.WEIGHTS, resume=not args.no_resume)
             .get("iteration", -1)
             + 1
