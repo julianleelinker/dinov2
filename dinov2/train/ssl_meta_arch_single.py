@@ -27,7 +27,7 @@ except ImportError:
 
 logger = logging.getLogger("dinov2")
 
-DEBUG = True
+DEBUG = False
 
 
 def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
@@ -390,17 +390,21 @@ class SSLMetaArchSingle(nn.Module):
     #         self.need_to_synchronize_fsdp_streams = False
 
     def update_teacher(self, m):
-        # TODO
         # student_param_list = []
         # teacher_param_list = []
         # with torch.no_grad():
         #     for k in self.student.keys():
-        #         for ms, mt in zip(get_fsdp_modules(self.student[k]), get_fsdp_modules(self.teacher[k])):
+        #         import ipdb; ipdb.set_trace()
+        #         for ms, mt in zip(self.student[k], self.teacher[k]):
         #             student_param_list += ms.params
         #             teacher_param_list += mt.params
         #     torch._foreach_mul_(teacher_param_list, m)
         #     torch._foreach_add_(teacher_param_list, student_param_list, alpha=1 - m)
-        raise NotImplementedError
+
+        with torch.no_grad():
+            for k in self.student.keys():
+                for ms, mt in zip(self.student[k].parameters(), self.teacher[k].parameters()):
+                    mt.data = m * mt.data + (1 - m) * ms.data
 
     def train(self):
         super().train()

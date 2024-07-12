@@ -282,15 +282,18 @@ def do_train(cfg, model, resume=False):
 
         # logging
 
-        if distributed.get_global_size() > 1:
-            for v in loss_dict.values():
-                torch.distributed.all_reduce(v)
-        loss_dict_reduced = {k: v.item() / distributed.get_global_size() for k, v in loss_dict.items()}
+        # if distributed.get_global_size() > 1:
+        #     for v in loss_dict.values():
+        #         torch.distributed.all_reduce(v)
+        # loss_dict_reduced = {k: v.item() / distributed.get_global_size() for k, v in loss_dict.items()}
+        loss_dict_reduced = {k: v.item() for k, v in loss_dict.items()}
 
-        if math.isnan(sum(loss_dict_reduced.values())):
-            logger.info("NaN detected")
-            raise AssertionError
+        # if math.isnan(sum(loss_dict_reduced.values())):
+        #     logger.info("NaN detected")
+        #     raise AssertionError
+        # losses_reduced = sum(loss for loss in loss_dict_reduced.values())
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+
 
         metric_logger.update(lr=lr)
         metric_logger.update(wd=wd)

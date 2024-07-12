@@ -1,0 +1,44 @@
+dino:
+  head_n_prototypes: 131072
+  head_bottleneck_dim: 384
+  koleo_loss_weight: 0
+ibot:
+  separate_head: true
+  head_n_prototypes: 131072
+train:
+  batch_size_per_gpu: 1
+  dataset_path: ImageNet22k
+  centering: sinkhorn_knopp
+  OFFICIAL_EPOCH_LENGTH: 1250
+student:
+  arch: vit_large
+  patch_size: 14
+  drop_path_rate: 0.4
+  ffn_layer: swiglufused
+  block_chunks: 4
+teacher:
+  momentum_teacher: 0.994
+optim:
+  # from ssl defualt config
+  epochs: 500
+  weight_decay: 0.04
+  # weight_decay_end: 0.4
+  # base_lr: 0.004  # learning rate for a batch size of 1024
+  lr: 0.  # will be set after applying scaling rule
+  # warmup_epochs: 10
+  min_lr: 1.0e-06
+  clip_grad: 3.0
+  freeze_last_layer_epochs: 1
+  scaling_rule: sqrt_wrt_1024
+  patch_embed_lr_mult: 0.2
+  # layerwise_decay: 0.9
+  adamw_beta1: 0.9
+  adamw_beta2: 0.999
+  #
+  weight_decay_end: 0.2
+  base_lr: 2.0e-04  # learning rate for a batch size of 1024
+  warmup_epochs: 80
+  layerwise_decay: 1.0
+crops:
+  local_crops_size: 98
+  global_crops_size: 224
