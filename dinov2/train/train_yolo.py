@@ -28,7 +28,7 @@ import copy
 from ultralytics.nn.tasks import yaml_model_load, parse_model
 
 
-# from dinov2.data.datasets import Tiip
+from dinov2.data.datasets import Tiip
 
 
 torch.backends.cuda.matmul.allow_tf32 = True  # PyTorch 1.12 sets this to False by default
@@ -131,7 +131,8 @@ def apply_optim_scheduler(optimizer, lr, wd, last_layer_lr):
 def do_test(cfg, model, iteration):
     new_state_dict = model.teacher.state_dict()
 
-    if distributed.is_main_process():
+    # if distributed.is_main_process():
+    if True:
         iterstring = str(iteration)
         eval_dir = os.path.join(cfg.train.output_dir, "eval", iterstring)
         os.makedirs(eval_dir, exist_ok=True)
@@ -202,16 +203,16 @@ def do_train(cfg, model, resume=False):
 
     # setup data loader
 
-    dataset = make_dataset(
-        dataset_str=cfg.train.dataset_path,
-        transform=data_transform,
-        target_transform=lambda _: (),
-    )
-    # dataset = Tiip(
-    #     root='/mnt/data-home/julian/tiip/convert_data',
+    # dataset = make_dataset(
+    #     dataset_str=cfg.train.dataset_path,
     #     transform=data_transform,
     #     target_transform=lambda _: (),
     # )
+    dataset = Tiip(
+        root='/mnt/data-home/julian/tiip/convert_data',
+        transform=data_transform,
+        target_transform=lambda _: (),
+    )
     # sampler_type = SamplerType.INFINITE
     sampler_type = SamplerType.SHARDED_INFINITE
     data_loader = make_data_loader(
@@ -310,7 +311,7 @@ def do_train(cfg, model, resume=False):
         periodic_checkpointer.step(iteration)
 
         iteration = iteration + 1
-    metric_logger.synchronize_between_processes()
+    # metric_logger.synchronize_between_processes()
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
@@ -338,7 +339,7 @@ def main(args):
     teacher_backbone.cuda()
     # import ipdb; ipdb.set_trace()
     # embed_dim = int(2*(cfg.crops.global_crops_size/32)**2)
-    embed_dim = 49
+    embed_dim = 256
     print(embed_dim)
     yolo_input = {
         'student_backbone': student_backbone,
