@@ -183,8 +183,10 @@ class SSLMetaArchSingle(nn.Module):
             if DEBUG:
                 print('teacher_backbone_output_dict["x_norm_patchtokens"]', '*'*20)
                 print(ibot_teacher_patch_tokens.shape)
+            # import ipdb; ipdb.set_trace()
             _dim = ibot_teacher_patch_tokens.shape[-1]
             n_cls_tokens = teacher_cls_tokens.shape[0]
+            # import ipdb; ipdb.set_trace()
 
             if do_ibot and not self.ibot_separate_head:
                 buffer_tensor_teacher = ibot_teacher_patch_tokens.new_zeros(upperbound + n_cls_tokens, _dim)
@@ -201,6 +203,8 @@ class SSLMetaArchSingle(nn.Module):
                     n_cls_tokens : n_cls_tokens + n_masked_patches
                 ]
             elif do_ibot and self.ibot_separate_head:
+                if DEBUG:
+                    print('ibot head', '*'*20)
                 buffer_tensor_teacher = ibot_teacher_patch_tokens.new_zeros(upperbound, _dim)
                 torch.index_select(
                     ibot_teacher_patch_tokens.flatten(0, 1),
@@ -230,6 +234,8 @@ class SSLMetaArchSingle(nn.Module):
                     self.ibot_patch_loss.update_center(masked_teacher_patch_tokens_after_head[:n_masked_patches])
 
             elif self.cfg.train.centering == "sinkhorn_knopp":
+                if DEBUG:
+                    print('sinkhorn_knopp', '*'*20)
                 teacher_dino_softmaxed_centered_list = self.dino_loss.sinkhorn_knopp_teacher(
                     teacher_cls_tokens_after_head, teacher_temp=teacher_temp
                 ).view(n_global_crops_teacher, -1, *teacher_cls_tokens_after_head.shape[1:])
@@ -247,6 +253,7 @@ class SSLMetaArchSingle(nn.Module):
             return teacher_dino_softmaxed_centered_list, masked_teacher_ibot_softmaxed_centered
 
         teacher_dino_softmaxed_centered_list, masked_teacher_ibot_softmaxed_centered = get_teacher_output()
+        # import ipdb; ipdb.set_trace()
 
         loss_dict = {}
 
@@ -259,8 +266,9 @@ class SSLMetaArchSingle(nn.Module):
             # self.mask_token.to(x.dtype).unsqueeze(0)
             # x = torch.where(masks.unsqueeze(-1), self.mask_token.to(x.dtype).unsqueeze(0), x)
             # import ipdb; ipdb.set_trace()
-            global_crops = apply_mask_on_batch_images(global_crops, masks, 14, 16)
-            student_global_backbone_output_dict = self.student.backbone(global_crops)
+            # global_crops = apply_mask_on_batch_images(global_crops, masks, 14, 16)
+            masked_global_crops = apply_mask_on_batch_images(global_crops, masks, 32, 7)
+            student_global_backbone_output_dict = self.student.backbone(masked_global_crops)
             student_local_backbone_output_dict = self.student.backbone(local_crops)
 
         inputs_for_student_head_list = []

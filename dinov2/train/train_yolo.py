@@ -339,7 +339,7 @@ def main(args):
     teacher_backbone.cuda()
     # import ipdb; ipdb.set_trace()
     # embed_dim = int(2*(cfg.crops.global_crops_size/32)**2)
-    embed_dim = 256
+    embed_dim = yolo_yaml['nc']
     print(embed_dim)
     yolo_input = {
         'student_backbone': student_backbone,
