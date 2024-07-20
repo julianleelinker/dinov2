@@ -6,13 +6,13 @@ ibot:
   separate_head: true
   head_n_prototypes: 131072
 train:
-  batch_size_per_gpu: 16
+  batch_size_per_gpu: 64
   dataset_path: ImageNet22k
   centering: sinkhorn_knopp
-  OFFICIAL_EPOCH_LENGTH: 1250
+  OFFICIAL_EPOCH_LENGTH: 20 # number of images / batch size
 student:
   arch: vit_large
-  patch_size: 14
+  patch_size: 32
   drop_path_rate: 0.4
   ffn_layer: swiglufused
   block_chunks: 4
