@@ -213,6 +213,8 @@ def do_train(cfg, model, resume=False):
         transform=data_transform,
         target_transform=lambda _: (),
     )
+    print(len(dataset))
+    # import ipdb; ipdb.set_trace()
     # sampler_type = SamplerType.INFINITE
     sampler_type = SamplerType.SHARDED_INFINITE
     data_loader = make_data_loader(
@@ -328,8 +330,9 @@ def main(args):
     # TODO check offical epoch lengths and scheduling
     cfg = setup(args)
 
-    yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8n-ssl.yaml'
+    yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
     yolo_yaml = yaml_model_load(yolo_path) 
+    # import ipdb; ipdb.set_trace()
     ch = 3
     # model, save = parse_model(copy.deepcopy(yaml), ch=ch, verbose=True)  # model, savelist
 

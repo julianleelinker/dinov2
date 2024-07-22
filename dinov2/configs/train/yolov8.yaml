@@ -9,7 +9,7 @@ train:
   batch_size_per_gpu: 64
   dataset_path: ImageNet22k
   centering: sinkhorn_knopp
-  OFFICIAL_EPOCH_LENGTH: 20 # number of images / batch size
+  OFFICIAL_EPOCH_LENGTH: 50 # number of images / batch size / 100
 student:
   arch: vit_large
   patch_size: 32
@@ -20,7 +20,7 @@ teacher:
   momentum_teacher: 0.994
 optim:
   # from ssl defualt config
-  epochs: 500
+  epochs: 100
   weight_decay: 0.04
   # weight_decay_end: 0.4
   # base_lr: 0.004  # learning rate for a batch size of 1024
