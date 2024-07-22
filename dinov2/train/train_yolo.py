@@ -29,6 +29,8 @@ from ultralytics.nn.tasks import yaml_model_load, parse_model
 
 
 from dinov2.data.datasets import Tiip
+import torch.nn as nn
+from ultralytics.utils.torch_utils import initialize_weights
 
 
 torch.backends.cuda.matmul.allow_tf32 = True  # PyTorch 1.12 sets this to False by default
@@ -171,7 +173,7 @@ def do_train(cfg, model, resume=False):
         checkpointer,
         period=3 * OFFICIAL_EPOCH_LENGTH,
         max_iter=max_iter,
-        max_to_keep=3,
+        max_to_keep=30,
     )
 
     # setup data preprocessing
@@ -338,6 +340,9 @@ def main(args):
 
     student_backbone, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
     teacher_backbone, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
+    initialize_weights(student_backbone)
+    initialize_weights(teacher_backbone)
+
     student_backbone.cuda()
     teacher_backbone.cuda()
     # import ipdb; ipdb.set_trace()
