@@ -171,9 +171,9 @@ def do_train(cfg, model, resume=False):
 
     periodic_checkpointer = PeriodicCheckpointer(
         checkpointer,
-        period=3 * OFFICIAL_EPOCH_LENGTH,
+        period=1 * OFFICIAL_EPOCH_LENGTH,
         max_iter=max_iter,
-        max_to_keep=30,
+        max_to_keep=100,
     )
 
     # setup data preprocessing
@@ -293,12 +293,10 @@ def do_train(cfg, model, resume=False):
         # loss_dict_reduced = {k: v.item() / distributed.get_global_size() for k, v in loss_dict.items()}
         loss_dict_reduced = {k: v.item() for k, v in loss_dict.items()}
 
-        # if math.isnan(sum(loss_dict_reduced.values())):
-        #     logger.info("NaN detected")
-        #     raise AssertionError
-        # losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+        if math.isnan(sum(loss_dict_reduced.values())):
+            logger.info("NaN detected")
+            raise AssertionError
         losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-
 
         metric_logger.update(lr=lr)
         metric_logger.update(wd=wd)

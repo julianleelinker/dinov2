@@ -40,6 +40,10 @@ class DataAugmentationDINO(object):
         logger.info(f"local_crops_size: {local_crops_size}")
         logger.info("###################################")
 
+
+        # resize
+        self.resize = transforms.Resize([640, 640])
+
         # random resized crop and flip
         self.geometric_augmentation_global = transforms.Compose(
             [

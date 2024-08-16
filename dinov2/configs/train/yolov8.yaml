@@ -9,7 +9,7 @@ train:
   batch_size_per_gpu: 64
   dataset_path: ImageNet22k
   centering: sinkhorn_knopp
-  OFFICIAL_EPOCH_LENGTH: 50 # number of images / batch size / 100
+  OFFICIAL_EPOCH_LENGTH: 5000 # (number of images) 330000 / batch size
 student:
   arch: vit_large
   patch_size: 32
@@ -25,8 +25,8 @@ optim:
   # weight_decay_end: 0.4
   # base_lr: 0.004  # learning rate for a batch size of 1024
   lr: 0.  # will be set after applying scaling rule
-  # warmup_epochs: 10
-  min_lr: 1.0e-06
+  warmup_epochs: 0
+  min_lr: 1.0e-07
   clip_grad: 3.0
   freeze_last_layer_epochs: 1
   scaling_rule: sqrt_wrt_1024
@@ -36,8 +36,7 @@ optim:
   adamw_beta2: 0.999
   #
   weight_decay_end: 0.2
-  base_lr: 2.0e-04  # learning rate for a batch size of 1024
-  warmup_epochs: 20
+  base_lr: 2.0e-05  # learning rate for a batch size of 1024
   layerwise_decay: 1.0
 crops:
   local_crops_size: 98
