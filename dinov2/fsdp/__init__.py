@@ -32,11 +32,14 @@ def get_fsdp_wrapper(model_cfg, modules_to_wrap=set()):
         "bf16": torch.bfloat16,
     }
 
-    mixed_precision_config = MixedPrecision(
-        param_dtype=dtype_dict[model_cfg.mixed_precision.param_dtype],
-        reduce_dtype=dtype_dict[model_cfg.mixed_precision.reduce_dtype],
-        buffer_dtype=dtype_dict[model_cfg.mixed_precision.buffer_dtype],
-    )
+    if model_cfg.mixed_precision.param_dtype == model_cfg.mixed_precision.reduce_dtype and model_cfg.mixed_precision.reduce_dtype == model_cfg.mixed_precision.buffer_dtype:
+        mixed_precision_config = None
+    else:
+        mixed_precision_config = MixedPrecision(
+            param_dtype=dtype_dict[model_cfg.mixed_precision.param_dtype],
+            reduce_dtype=dtype_dict[model_cfg.mixed_precision.reduce_dtype],
+            buffer_dtype=dtype_dict[model_cfg.mixed_precision.buffer_dtype],
+        )
 
     sharding_strategy_config = sharding_strategy_dict[model_cfg.sharding_strategy]
 

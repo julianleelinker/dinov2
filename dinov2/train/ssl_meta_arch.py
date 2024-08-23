@@ -28,8 +28,17 @@ except ImportError:
 logger = logging.getLogger("dinov2")
 
 
+def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
+    # unit = torch.ones((patch_size, patch_size), dtype=bool).to(mask.device)
+    unit = torch.ones((patch_size, patch_size), dtype=bool).cuda(non_blocking=True)
+    tmp_mask = mask.reshape((-1, n_patch_grids, n_patch_grids))
+    ans = torch.kron(tmp_mask, unit)
+    ans = ans.reshape(-1, 1, n_patch_grids*patch_size, n_patch_grids*patch_size)
+    return images*ans
+
+
 class SSLMetaArch(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, cfg, yolo_input=None):
         super().__init__()
         self.cfg = cfg
         self.fp16_scaler = ShardedGradScaler() if cfg.compute_precision.grad_scaler else None
@@ -37,7 +46,13 @@ class SSLMetaArch(nn.Module):
         student_model_dict = dict()
         teacher_model_dict = dict()
 
-        student_backbone, teacher_backbone, embed_dim = build_model_from_cfg(cfg)
+        if yolo_input is None:
+            student_backbone, teacher_backbone, embed_dim = build_model_from_cfg(cfg)
+        else:
+            student_backbone, teacher_backbone, embed_dim = yolo_input['student_backbone'], yolo_input['teacher_backbone'], yolo_input['embed_dim']
+            self.mask_token = nn.Parameter(torch.zeros(1, embed_dim))
+        self.yolo = yolo_input
+
         student_model_dict["backbone"] = student_backbone
         teacher_model_dict["backbone"] = teacher_backbone
         logger.info(f"OPTIONS -- architecture : embed_dim: {embed_dim}")
@@ -157,7 +172,10 @@ class SSLMetaArch(nn.Module):
         @torch.no_grad()
         def get_teacher_output():
             x, n_global_crops_teacher = global_crops, n_global_crops
-            teacher_backbone_output_dict = self.teacher.backbone(x, is_training=True)
+            if self.yolo is None:
+                teacher_backbone_output_dict = self.teacher.backbone(x, is_training=True)
+            else:
+                teacher_backbone_output_dict = self.teacher.backbone(x)
             teacher_cls_tokens = teacher_backbone_output_dict["x_norm_clstoken"]
             teacher_cls_tokens = teacher_cls_tokens.chunk(n_global_crops_teacher)
             # watch out: these are chunked and cat'd in reverse so A is matched to B in the global crops dino loss
@@ -232,9 +250,14 @@ class SSLMetaArch(nn.Module):
         loss_dict = {}
 
         loss_accumulator = 0  # for backprop
-        student_global_backbone_output_dict, student_local_backbone_output_dict = self.student.backbone(
+        if self.yolo is None:
+            student_global_backbone_output_dict, student_local_backbone_output_dict = self.student.backbone(
             [global_crops, local_crops], masks=[masks, None], is_training=True
         )
+        else:
+            masked_global_crops = apply_mask_on_batch_images(global_crops, masks, 32, 7)
+            student_global_backbone_output_dict = self.student.backbone(masked_global_crops)
+            student_local_backbone_output_dict = self.student.backbone(local_crops)
 
         inputs_for_student_head_list = []
 
@@ -389,7 +412,7 @@ class SSLMetaArch(nn.Module):
 
     def prepare_for_distributed_training(self):
         logger.info("DISTRIBUTED FSDP -- preparing model for distributed training")
-        if has_batchnorms(self.student):
+        if self.yolo is None and has_batchnorms(self.student):
             raise NotImplementedError
         # below will synchronize all student subnetworks across gpus:
         for k, v in self.student.items():
