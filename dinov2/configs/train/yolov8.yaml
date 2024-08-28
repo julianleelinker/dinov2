@@ -6,10 +6,13 @@ ibot:
   separate_head: true
   head_n_prototypes: 131072
 train:
-  batch_size_per_gpu: 64
+  batch_size_per_gpu: 64 # yolov8-m
+  # batch_size_per_gpu: 32 # yolov8-x
   dataset_path: ImageNet22k
   centering: sinkhorn_knopp
-  OFFICIAL_EPOCH_LENGTH: 5000 # (number of images) 330000 / batch size
+  # OFFICIAL_EPOCH_LENGTH: 5000 # (number of images) Tiip, batch_size 64
+  # OFFICIAL_EPOCH_LENGTH: 20000 # (number of images) Imagenet, batch_size 64
+  OFFICIAL_EPOCH_LENGTH: 10000
 student:
   arch: vit_large
   patch_size: 32
