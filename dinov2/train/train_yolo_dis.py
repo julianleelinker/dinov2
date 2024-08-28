@@ -204,16 +204,16 @@ def do_train(cfg, model, resume=False):
 
     # setup data loader
 
-    # dataset = make_dataset(
-    #     dataset_str=cfg.train.dataset_path,
-    #     transform=data_transform,
-    #     target_transform=lambda _: (),
-    # )
-    dataset = Tiip(
-        root='/mnt/data-home/julian/tiip/convert_data',
+    dataset = make_dataset(
+        dataset_str=cfg.train.dataset_path,
         transform=data_transform,
         target_transform=lambda _: (),
     )
+    # dataset = Tiip(
+    #     root='/mnt/data-home/julian/tiip/convert_data',
+    #     transform=data_transform,
+    #     target_transform=lambda _: (),
+    # )
     print(len(dataset))
     # import ipdb; ipdb.set_trace()
     # sampler_type = SamplerType.INFINITE
