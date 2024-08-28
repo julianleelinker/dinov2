@@ -215,7 +215,7 @@ def do_train(cfg, model, resume=False):
     #     target_transform=lambda _: (),
     # )
     print(len(dataset))
-    # import ipdb; ipdb.set_trace()
+
     # sampler_type = SamplerType.INFINITE
     sampler_type = SamplerType.SHARDED_INFINITE
     data_loader = make_data_loader(
@@ -281,8 +281,8 @@ def do_train(cfg, model, resume=False):
 
         # perform teacher EMA update
 
-        # if not model.distill:
-        model.update_teacher(mom)
+        if not model.distill:
+            model.update_teacher(mom)
 
         # logging
 
@@ -317,24 +317,20 @@ def do_train(cfg, model, resume=False):
 
 
 def main(args):
-    # TODO embed_dim as config
-    # TOOO distributed training, check batch norm
-    # TODO deal with cls token and dino head, currently use wrong cls token
-    # TODO enable batchnorm along with backbone FSDP
-    # TODO global and local crop size in config
-    # TODO check use what image size and corresponding embed_dim
-    # TODO more fundamental change with yolo grid / patch
-    # TODO develop pathtoken use all input of ddetect head
-    # TODO larger image size, random crop
-    # TODO check offical epoch lengths and scheduling
+    # TODO distill
+        # TODO load a pretrained teacher
+        # TODO consider YOLO as teacher case
+
+
+    # TODO yolo_path and yolo_yaml as args
+    # TODO dataset
+
     cfg = setup(args)
+    cfg.distill = cfg.get('distill', False)
 
     yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
     yolo_yaml = yaml_model_load(yolo_path) 
-    # import ipdb; ipdb.set_trace()
     ch = 3
-    # model, save = parse_model(copy.deepcopy(yaml), ch=ch, verbose=True)  # model, savelist
-
     student_backbone, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
     teacher_backbone, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
     initialize_weights(student_backbone)
@@ -342,17 +338,14 @@ def main(args):
 
     student_backbone.cuda()
     teacher_backbone.cuda()
-    # import ipdb; ipdb.set_trace()
-    # embed_dim = int(2*(cfg.crops.global_crops_size/32)**2)
-    embed_dim = yolo_yaml['nc']
-    print(embed_dim)
-    yolo_input = {
+    yolo_cfg = {
         'student_backbone': student_backbone,
         'teacher_backbone': teacher_backbone,
-        'embed_dim': embed_dim,
+        'embed_dim': yolo_yaml['nc'],
+        'patch_size': 32,
     }
 
-    model = SSLMetaArch(cfg, yolo_input=yolo_input).to(torch.device("cuda"))
+    model = SSLMetaArch(cfg, yolo_cfg=yolo_cfg).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
 
     logger.info("Model:\n{}".format(model))

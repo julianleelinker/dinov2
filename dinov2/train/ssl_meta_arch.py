@@ -38,20 +38,21 @@ def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
 
 
 class SSLMetaArch(nn.Module):
-    def __init__(self, cfg, yolo_input=None):
+    def __init__(self, cfg, yolo_cfg=None):
         super().__init__()
         self.cfg = cfg
+        self.distill = cfg.distill
         self.fp16_scaler = ShardedGradScaler() if cfg.compute_precision.grad_scaler else None
 
         student_model_dict = dict()
         teacher_model_dict = dict()
 
-        if yolo_input is None:
+        if yolo_cfg is None:
             student_backbone, teacher_backbone, embed_dim = build_model_from_cfg(cfg)
         else:
-            student_backbone, teacher_backbone, embed_dim = yolo_input['student_backbone'], yolo_input['teacher_backbone'], yolo_input['embed_dim']
+            student_backbone, teacher_backbone, embed_dim = yolo_cfg['student_backbone'], yolo_cfg['teacher_backbone'], yolo_cfg['embed_dim']
             self.mask_token = nn.Parameter(torch.zeros(1, embed_dim))
-        self.yolo = yolo_input
+        self.yolo_cfg = yolo_cfg
 
         student_model_dict["backbone"] = student_backbone
         teacher_model_dict["backbone"] = teacher_backbone
@@ -172,7 +173,7 @@ class SSLMetaArch(nn.Module):
         @torch.no_grad()
         def get_teacher_output():
             x, n_global_crops_teacher = global_crops, n_global_crops
-            if self.yolo is None:
+            if self.yolo_cfg is None:
                 teacher_backbone_output_dict = self.teacher.backbone(x, is_training=True)
             else:
                 teacher_backbone_output_dict = self.teacher.backbone(x)
@@ -250,12 +251,15 @@ class SSLMetaArch(nn.Module):
         loss_dict = {}
 
         loss_accumulator = 0  # for backprop
-        if self.yolo is None:
+        if self.yolo_cfg is None:
             student_global_backbone_output_dict, student_local_backbone_output_dict = self.student.backbone(
             [global_crops, local_crops], masks=[masks, None], is_training=True
         )
         else:
-            masked_global_crops = apply_mask_on_batch_images(global_crops, masks, 32, 7)
+            # masked_global_crops = apply_mask_on_batch_images(global_crops, masks, self.yolo_cfg['patch_size'], 7)
+            assert self.cfg.crops.global_crops_size % self.yolo_cfg['patch_size'] == 0, f"global crop size ({self.cfg.crops.global_crops_size}) should be divisible by patch size ({self.yolo_cfg['patch_size']})"
+            n_patch_grids = self.cfg.crops.global_crops_size // self.yolo_cfg['patch_size']
+            masked_global_crops = apply_mask_on_batch_images(global_crops, masks, self.yolo_cfg['patch_size'], n_patch_grids)
             student_global_backbone_output_dict = self.student.backbone(masked_global_crops)
             student_local_backbone_output_dict = self.student.backbone(local_crops)
 
@@ -412,7 +416,7 @@ class SSLMetaArch(nn.Module):
 
     def prepare_for_distributed_training(self):
         logger.info("DISTRIBUTED FSDP -- preparing model for distributed training")
-        if self.yolo is None and has_batchnorms(self.student):
+        if self.yolo_cfg is None and has_batchnorms(self.student):
             raise NotImplementedError
         # below will synchronize all student subnetworks across gpus:
         for k, v in self.student.items():
