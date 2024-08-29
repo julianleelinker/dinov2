@@ -318,6 +318,7 @@ def do_train(cfg, model, resume=False):
 
 def main(args):
     # TODO distill
+        # TODO disitlled backbone as config
         # TODO load a pretrained teacher
         # TODO consider YOLO as teacher case
 

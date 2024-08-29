@@ -38,10 +38,10 @@ def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
 
 
 class SSLMetaArch(nn.Module):
-    def __init__(self, cfg, yolo_cfg=None):
+    def __init__(self, cfg, yolo_cfg=None, distilled_backbone=None):
         super().__init__()
         self.cfg = cfg
-        self.distill = cfg.distill
+        self.distill = not distilled_backbone is None
         self.fp16_scaler = ShardedGradScaler() if cfg.compute_precision.grad_scaler else None
 
         student_model_dict = dict()
@@ -55,6 +55,8 @@ class SSLMetaArch(nn.Module):
         self.yolo_cfg = yolo_cfg
 
         student_model_dict["backbone"] = student_backbone
+        if self.distill:
+            teacher_model_dict["backbone"] = distilled_backbone
         teacher_model_dict["backbone"] = teacher_backbone
         logger.info(f"OPTIONS -- architecture : embed_dim: {embed_dim}")
 
