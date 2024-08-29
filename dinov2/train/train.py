@@ -261,7 +261,8 @@ def do_train(cfg, model, resume=False):
 
         # perform teacher EMA update
 
-        model.update_teacher(mom)
+        if not model.distill:
+            model.update_teacher(mom)
 
         # logging
 
