@@ -24,13 +24,10 @@ from dinov2.utils.utils import CosineScheduler
 # from dinov2.train.ssl_meta_arch_single import SSLMetaArchSingle
 
 import torch
-import copy
-from ultralytics.nn.tasks import yaml_model_load, parse_model
 
 
 from dinov2.data.datasets import Tiip
 import torch.nn as nn
-from ultralytics.utils.torch_utils import initialize_weights
 from dinov2.train.ssl_meta_arch import SSLMetaArch
 
 
@@ -330,23 +327,11 @@ def main(args):
 
     # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8n-ssl.yaml'
     # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8s-ssl.yaml'
-    # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
-    # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8l-ssl.yaml'
-    yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8x-ssl.yaml'
-    yolo_yaml = yaml_model_load(yolo_path) 
-    ch = 3
-    student_backbone, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
-    teacher_backbone, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
-    initialize_weights(student_backbone)
-    initialize_weights(teacher_backbone)
+    yolo_yaml_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
 
-    student_backbone.cuda()
-    teacher_backbone.cuda()
     yolo_cfg = {
-        'student_backbone': student_backbone,
-        'teacher_backbone': teacher_backbone,
-        'embed_dim': yolo_yaml['nc'],
         'patch_size': 32,
+        'yolo_yaml_path': yolo_yaml_path,
     }
 
     model = SSLMetaArch(cfg, yolo_cfg=yolo_cfg).to(torch.device("cuda"))

@@ -5,6 +5,7 @@
 
 from functools import partial
 import logging
+import copy
 
 import torch
 from torch import nn
@@ -18,6 +19,9 @@ from dinov2.fsdp import get_fsdp_wrapper, ShardedGradScaler, get_fsdp_modules, r
 
 from dinov2.models.vision_transformer import BlockChunk
 
+from ultralytics.nn.tasks import yaml_model_load, parse_model
+from ultralytics.utils.torch_utils import initialize_weights
+
 
 try:
     from xformers.ops import fmha
@@ -26,6 +30,15 @@ except ImportError:
 
 
 logger = logging.getLogger("dinov2")
+
+
+def build_yolo_model(yolo_yaml_path, ch=3):
+    yolo_yaml = yaml_model_load(yolo_yaml_path) 
+    yolo_model, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
+    initialize_weights(yolo_model)
+    embed_dim = yolo_yaml['nc']
+    # yolo_model.cuda()
+    return yolo_model, embed_dim
 
 
 def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
@@ -50,8 +63,9 @@ class SSLMetaArch(nn.Module):
         if yolo_cfg is None:
             student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
         else:
-            student_backbone, teacher_backbone, student_embed_dim = yolo_cfg['student_backbone'], yolo_cfg['teacher_backbone'], yolo_cfg['embed_dim']
-            self.mask_token = nn.Parameter(torch.zeros(1, student_embed_dim))
+            student_backbone, student_embed_dim = build_yolo_model(yolo_cfg['yolo_yaml_path'])
+            teacher_backbone, _ = build_yolo_model(yolo_cfg['yolo_yaml_path'])
+
         self.yolo_cfg = yolo_cfg
 
         student_model_dict["backbone"] = student_backbone
