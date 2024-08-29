@@ -326,9 +326,12 @@ def main(args):
     # TODO dataset
 
     cfg = setup(args)
-    cfg.distill = cfg.get('distill', False)
 
-    yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
+    # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8n-ssl.yaml'
+    # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8s-ssl.yaml'
+    # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
+    # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8l-ssl.yaml'
+    yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8x-ssl.yaml'
     yolo_yaml = yaml_model_load(yolo_path) 
     ch = 3
     student_backbone, _ = parse_model(copy.deepcopy(yolo_yaml), ch=ch, verbose=True)
