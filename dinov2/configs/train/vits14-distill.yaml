@@ -18,6 +18,7 @@ student:
   block_chunks: 4
 teacher:
   arch: 'dinov2_vitl14'
+  embed_dim: 1024
   momentum_teacher: 0.994
 optim:
   epochs: 10
@@ -31,10 +32,10 @@ distill:
   True
 
 # distill teacher arch
-# 'dinov2_vits14'
-# 'dinov2_vitb14'
-# 'dinov2_vitl14'
-# 'dinov2_vitg14'
+# 'dinov2_vits14', embed_dim=   
+# 'dinov2_vitb14', embed_dim=   
+# 'dinov2_vitl14', embed_dim=
+# 'dinov2_vitg14', embed_dim=   
 # 'dinov2_vits14_reg'
 # 'dinov2_vitb14_reg'
 # 'dinov2_vitl14_reg'

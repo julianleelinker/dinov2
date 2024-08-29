@@ -48,24 +48,28 @@ class SSLMetaArch(nn.Module):
         teacher_model_dict = dict()
 
         if yolo_cfg is None:
-            student_backbone, teacher_backbone, embed_dim = build_model_from_cfg(cfg)
+            student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
         else:
-            student_backbone, teacher_backbone, embed_dim = yolo_cfg['student_backbone'], yolo_cfg['teacher_backbone'], yolo_cfg['embed_dim']
-            self.mask_token = nn.Parameter(torch.zeros(1, embed_dim))
+            student_backbone, teacher_backbone, student_embed_dim = yolo_cfg['student_backbone'], yolo_cfg['teacher_backbone'], yolo_cfg['embed_dim']
+            self.mask_token = nn.Parameter(torch.zeros(1, student_embed_dim))
         self.yolo_cfg = yolo_cfg
 
         student_model_dict["backbone"] = student_backbone
         if self.distill:
             teacher_model_dict["backbone"] = distill_teacher
-        teacher_model_dict["backbone"] = teacher_backbone
-        logger.info(f"OPTIONS -- architecture : embed_dim: {embed_dim}")
+            teacher_embed_dim = cfg.teacher.embed_dim
+        else:
+            teacher_model_dict["backbone"] = teacher_backbone
+            teacher_embed_dim = student_embed_dim
+        logger.info(f"OPTIONS -- architecture : student_embed_dim: {student_embed_dim}")
+        logger.info(f"OPTIONS -- architecture : teacher_embed_dim: {teacher_embed_dim}")
 
         if cfg.student.pretrained_weights:
             chkpt = torch.load(cfg.student.pretrained_weights)
             logger.info(f"OPTIONS -- pretrained weights: loading from {cfg.student.pretrained_weights}")
             student_backbone.load_state_dict(chkpt["model"], strict=False)
 
-        self.embed_dim = embed_dim
+        # self.embed_dim = student_embed_dim
         self.dino_out_dim = cfg.dino.head_n_prototypes
 
         self.do_dino = cfg.dino.loss_weight > 0
@@ -80,9 +84,17 @@ class SSLMetaArch(nn.Module):
             logger.info(f"OPTIONS -- DINO -- head_bottleneck_dim: {cfg.dino.head_bottleneck_dim}")
             logger.info(f"OPTIONS -- DINO -- head_hidden_dim: {cfg.dino.head_hidden_dim}")
             self.dino_loss_weight = cfg.dino.loss_weight
-            dino_head = partial(
+            student_dino_head = partial(
                 DINOHead,
-                in_dim=embed_dim,
+                in_dim=student_embed_dim,
+                out_dim=cfg.dino.head_n_prototypes,
+                hidden_dim=cfg.dino.head_hidden_dim,
+                bottleneck_dim=cfg.dino.head_bottleneck_dim,
+                nlayers=cfg.dino.head_nlayers,
+            )
+            teacher_dino_head = partial(
+                DINOHead,
+                in_dim=teacher_embed_dim,
                 out_dim=cfg.dino.head_n_prototypes,
                 hidden_dim=cfg.dino.head_hidden_dim,
                 bottleneck_dim=cfg.dino.head_bottleneck_dim,
@@ -97,8 +109,8 @@ class SSLMetaArch(nn.Module):
             logger.info("OPTIONS -- DINO -- not using DINO")
 
         if self.do_dino or self.do_ibot:
-            student_model_dict["dino_head"] = dino_head()
-            teacher_model_dict["dino_head"] = dino_head()
+            student_model_dict["dino_head"] = student_dino_head()
+            teacher_model_dict["dino_head"] = teacher_dino_head()
 
         logger.info("OPTIONS -- IBOT")
         logger.info(f"OPTIONS -- IBOT -- loss_weight: {cfg.ibot.loss_weight}")
@@ -115,16 +127,24 @@ class SSLMetaArch(nn.Module):
                 logger.info(f"OPTIONS -- IBOT -- head_n_prototypes: {cfg.ibot.head_n_prototypes}")
                 logger.info(f"OPTIONS -- IBOT -- head_bottleneck_dim: {cfg.ibot.head_bottleneck_dim}")
                 logger.info(f"OPTIONS -- IBOT -- head_hidden_dim: {cfg.ibot.head_hidden_dim}")
-                ibot_head = partial(
+                student_ibot_head = partial(
                     DINOHead,
-                    in_dim=embed_dim,
+                    in_dim=student_embed_dim,
                     out_dim=cfg.ibot.head_n_prototypes,
                     hidden_dim=cfg.ibot.head_hidden_dim,
                     bottleneck_dim=cfg.ibot.head_bottleneck_dim,
                     nlayers=cfg.ibot.head_nlayers,
                 )
-                student_model_dict["ibot_head"] = ibot_head()
-                teacher_model_dict["ibot_head"] = ibot_head()
+                teacher_ibot_head = partial(
+                    DINOHead,
+                    in_dim=teacher_embed_dim,
+                    out_dim=cfg.ibot.head_n_prototypes,
+                    hidden_dim=cfg.ibot.head_hidden_dim,
+                    bottleneck_dim=cfg.ibot.head_bottleneck_dim,
+                    nlayers=cfg.ibot.head_nlayers,
+                )
+                student_model_dict["ibot_head"] = student_ibot_head()
+                teacher_model_dict["ibot_head"] = teacher_ibot_head()
             else:
                 logger.info("OPTIONS -- IBOT -- head shared with DINO")
 
