@@ -298,7 +298,8 @@ def do_train(cfg, model, resume=False):
 def main(args):
     cfg = setup(args)
 
-    model = SSLMetaArch(cfg).to(torch.device("cuda"))
+    distill_teacher = torch.hub.load('facebookresearch/dinov2', cfg.teacher.arch) if cfg.distill else None
+    model = SSLMetaArch(cfg, distill_teacher=distill_teacher).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
 
     logger.info("Model:\n{}".format(model))
