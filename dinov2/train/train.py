@@ -20,6 +20,7 @@ from dinov2.logging import MetricLogger
 from dinov2.utils.config import setup
 from dinov2.utils.utils import CosineScheduler
 
+from dinov2.data.datasets import Tiip
 from dinov2.train.ssl_meta_arch import SSLMetaArch
 
 
@@ -191,8 +192,13 @@ def do_train(cfg, model, resume=False):
 
     # setup data loader
 
-    dataset = make_dataset(
-        dataset_str=cfg.train.dataset_path,
+    # dataset = make_dataset(
+    #     dataset_str=cfg.train.dataset_path,
+    #     transform=data_transform,
+    #     target_transform=lambda _: (),
+    # )
+    dataset = Tiip(
+        root='/mnt/data-home/julian/tiip/convert_data',
         transform=data_transform,
         target_transform=lambda _: (),
     )
