@@ -21,30 +21,34 @@ def update_ssl_backbone(dst_model, src_state_dict, prefix):
     print(f'{updated_count=} {unupdated_count=}')
 
 
+def update_dinov2_backbone(dst_model, src_model, model_type):
+    if model_type == 'full':
+        ssl_state_dict = src_model['model']
+        prefix = 'teacher.backbone.'
+    elif model_type == 'teacher':
+        ssl_state_dict = src_model['teacher']
+        prefix = 'backbone.'
+    else:
+        raise NotImplementedError(f'{model_type} not implemented')
+    update_ssl_backbone(dst_model, ssl_state_dict, prefix=prefix)
+
+
 def main(args):
     cfg = setup(args)
     title = 'test'
     model_type = 'full'
 
-    # feat_dim, ssl_path = 384, '/mnt/data-home/julian/tiip/dinov2/vits14-tiip/model_final.rank_0.pth'
-    feat_dim, ssl_path = 1024, '/mnt/data-home/julian/tiip/dinov2/hungyu/model_0059993.rank_0.pth'
+    feat_dim, ssl_path = 384, '/mnt/data-home/julian/tiip/dinov2/vits14-tiip/model_final.rank_0.pth'
+    # feat_dim, ssl_path = 1024, '/mnt/data-home/julian/tiip/dinov2/hungyu/model_0059993.rank_0.pth'
     # feat_dim, ssl_path = 1024, '/mnt/data-home/julian/tiip/dinov2/hungyu/teacher_checkpoint.pth'
 
     ssl_model = torch.load(ssl_path)
 
-    if model_type == 'full':
-        ssl_state_dict = ssl_model['model']
-        prefix = 'teacher.backbone.'
-    elif model_type == 'teacher':
-        ssl_state_dict = ssl_model['teacher']
-        prefix = 'backbone.'
-
     teacher_backbone, teacher_embed_dim = build_model_from_cfg(cfg, only_teacher=True)
-    update_ssl_backbone(teacher_backbone, ssl_state_dict, prefix=prefix)
+    # update_ssl_backbone(teacher_backbone, ssl_state_dict, prefix=prefix)
+    update_dinov2_backbone(teacher_backbone, ssl_model, model_type)
     teacher_backbone.cuda()
 
-    # this threshold depends on model size, and not sure the criterion is < or >
-    # currently tested < for b, g, > for l, s
     # image_path = '/home/julian/work/Dino_V2/harryported_giffin_images'
     # image_path = '/mnt/data-home/julian/ssl/pca-examples/fashion'
     # image_path = '/mnt/data-home/julian/ssl/pca-examples/imagenet'
