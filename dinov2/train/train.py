@@ -304,7 +304,10 @@ def do_train(cfg, model, resume=False):
 def main(args):
     cfg = setup(args)
 
-    distill_teacher = torch.hub.load('facebookresearch/dinov2', cfg.teacher.arch) if cfg.distill else None
+    distill_teacher = {
+        'model_type': 'vit',
+        'backbone': torch.hub.load('facebookresearch/dinov2', cfg.teacher.arch),
+    } if cfg.distill else None
     model = SSLMetaArch(cfg, distill_teacher=distill_teacher).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
 

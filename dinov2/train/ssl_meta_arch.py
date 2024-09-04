@@ -62,16 +62,19 @@ class SSLMetaArch(nn.Module):
 
         if yolo_cfg is None:
             student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
+            self.teacher_type, self.student_type = 'vit', 'vit'
         else:
             student_backbone, student_embed_dim = build_yolo_model(yolo_cfg['yolo_yaml_path'])
             teacher_backbone, _ = build_yolo_model(yolo_cfg['yolo_yaml_path'])
+            self.teacher_type, self.student_type = 'yolo', 'yolo'
 
         self.yolo_cfg = yolo_cfg
 
         student_model_dict["backbone"] = student_backbone
         if self.distill:
-            teacher_model_dict["backbone"] = distill_teacher
+            teacher_model_dict["backbone"] = distill_teacher['backbone']
             teacher_embed_dim = cfg.teacher.embed_dim
+            self.teacher_type = distill_teacher['model_type']
         else:
             teacher_model_dict["backbone"] = teacher_backbone
             teacher_embed_dim = student_embed_dim
@@ -209,7 +212,8 @@ class SSLMetaArch(nn.Module):
         @torch.no_grad()
         def get_teacher_output():
             x, n_global_crops_teacher = global_crops, n_global_crops
-            if self.yolo_cfg is None:
+            # if self.yolo_cfg is None:
+            if self.teacher_type == 'vit':
                 teacher_backbone_output_dict = self.teacher.backbone(x, is_training=True)
             else:
                 teacher_backbone_output_dict = self.teacher.backbone(x)
@@ -287,7 +291,8 @@ class SSLMetaArch(nn.Module):
         loss_dict = {}
 
         loss_accumulator = 0  # for backprop
-        if self.yolo_cfg is None:
+        # if self.yolo_cfg is None:
+        if self.student_type == 'vit':
             student_global_backbone_output_dict, student_local_backbone_output_dict = self.student.backbone(
             [global_crops, local_crops], masks=[masks, None], is_training=True
         )
@@ -452,7 +457,8 @@ class SSLMetaArch(nn.Module):
 
     def prepare_for_distributed_training(self):
         logger.info("DISTRIBUTED FSDP -- preparing model for distributed training")
-        if self.yolo_cfg is None and has_batchnorms(self.student):
+        # if self.yolo_cfg is None and has_batchnorms(self.student):
+        if self.student_type=='vit' and has_batchnorms(self.student):
             raise NotImplementedError
         # below will synchronize all student subnetworks across gpus:
         if self.distill:
