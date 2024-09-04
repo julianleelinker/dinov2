@@ -201,16 +201,16 @@ def do_train(cfg, model, resume=False):
 
     # setup data loader
 
-    dataset = make_dataset(
-        dataset_str=cfg.train.dataset_path,
-        transform=data_transform,
-        target_transform=lambda _: (),
-    )
-    # dataset = Tiip(
-    #     root='/mnt/data-home/julian/tiip/convert_data',
+    # dataset = make_dataset(
+    #     dataset_str=cfg.train.dataset_path,
     #     transform=data_transform,
     #     target_transform=lambda _: (),
     # )
+    dataset = Tiip(
+        root='/mnt/data-home/julian/tiip/convert_data',
+        transform=data_transform,
+        target_transform=lambda _: (),
+    )
     print(len(dataset))
 
     # sampler_type = SamplerType.INFINITE
@@ -287,7 +287,6 @@ def do_train(cfg, model, resume=False):
             for v in loss_dict.values():
                 torch.distributed.all_reduce(v)
         loss_dict_reduced = {k: v.item() / distributed.get_global_size() for k, v in loss_dict.items()}
-        # loss_dict_reduced = {k: v.item() for k, v in loss_dict.items()}
 
         if math.isnan(sum(loss_dict_reduced.values())):
             logger.info("NaN detected")
@@ -327,14 +326,18 @@ def main(args):
 
     # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8n-ssl.yaml'
     # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8s-ssl.yaml'
-    yolo_yaml_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
 
-    yolo_cfg = {
-        'patch_size': 32,
-        'yolo_yaml_path': yolo_yaml_path,
-    }
+    # yolo_yaml_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
+    # yolo_cfg = {
+    #     'patch_size': 32,
+    #     'yolo_yaml_path': yolo_yaml_path,
+    # }
 
-    model = SSLMetaArch(cfg, yolo_cfg=yolo_cfg).to(torch.device("cuda"))
+    distill_teacher = {
+        'model_type': 'vit',
+        'backbone': torch.hub.load('facebookresearch/dinov2', cfg.teacher.arch),
+    } if cfg.distill else None
+    model = SSLMetaArch(cfg, yolo_cfg=cfg.yolo_cfg, distill_teacher=distill_teacher).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
 
     logger.info("Model:\n{}".format(model))

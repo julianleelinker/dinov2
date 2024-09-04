@@ -20,6 +20,8 @@ student:
   ffn_layer: swiglufused
   block_chunks: 4
 teacher:
+  arch: 'dinov2_vits14'
+  embed_dim: 384
   momentum_teacher: 0.994
 optim:
   # from ssl defualt config
@@ -43,7 +45,7 @@ optim:
   layerwise_decay: 1.0
 crops:
   local_crops_size: 98
-  global_crops_size: 224
+  global_crops_size: 518
 compute_precision:
   grad_scaler: true
   teacher:
@@ -84,6 +86,10 @@ compute_precision:
         param_dtype: fp16
         reduce_dtype: fp16
         buffer_dtype: fp16
+distill:
+  True
 yolo_cfg:
   patch_size: 32
   yolo_yaml_path: /home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml
+
+# if distill is True, then teacher arch, and embed_dim are required
