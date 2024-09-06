@@ -48,6 +48,33 @@ def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
     ans = torch.kron(tmp_mask, unit)
     ans = ans.reshape(-1, 1, n_patch_grids*patch_size, n_patch_grids*patch_size)
     return images*ans
+        
+
+def build_teacher_student(cfg, distill_teacher):
+    if 'yolo_cfg' in cfg:
+        student_backbone, student_embed_dim = build_yolo_model(cfg.yolo_cfg['yolo_yaml_path'])
+        teacher_backbone, _ = build_yolo_model(cfg.yolo_cfg['yolo_yaml_path'])
+        teacher_type, student_type = 'yolo', 'yolo'
+    else:
+        student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
+        teacher_type, student_type = 'vit', 'vit'
+
+
+    # student_model_dict["backbone"] = student_backbone
+    if cfg.distill:
+        teacher_backbone = distill_teacher['backbone']
+        teacher_embed_dim = cfg.teacher.embed_dim
+        teacher_type = distill_teacher['model_type']
+    else:
+        teacher_embed_dim = student_embed_dim
+    logger.info(f"OPTIONS -- architecture : student_embed_dim: {student_embed_dim}")
+    logger.info(f"OPTIONS -- architecture : teacher_embed_dim: {teacher_embed_dim}")
+
+    if cfg.student.pretrained_weights:
+        chkpt = torch.load(cfg.student.pretrained_weights)
+        logger.info(f"OPTIONS -- pretrained weights: loading from {cfg.student.pretrained_weights}")
+        student_backbone.load_state_dict(chkpt["model"], strict=False)
+    return student_backbone, teacher_backbone, student_embed_dim, teacher_embed_dim, teacher_type, student_type
 
 
 class SSLMetaArchGeneral(nn.Module):
@@ -60,32 +87,37 @@ class SSLMetaArchGeneral(nn.Module):
         student_model_dict = dict()
         teacher_model_dict = dict()
 
-        if 'yolo_cfg' in self.cfg:
-            student_backbone, student_embed_dim = build_yolo_model(self.cfg.yolo_cfg['yolo_yaml_path'])
-            teacher_backbone, _ = build_yolo_model(self.cfg.yolo_cfg['yolo_yaml_path'])
-            self.teacher_type, self.student_type = 'yolo', 'yolo'
-        else:
-            student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
-            self.teacher_type, self.student_type = 'vit', 'vit'
+        # if 'yolo_cfg' in self.cfg:
+        #     student_backbone, student_embed_dim = build_yolo_model(self.cfg.yolo_cfg['yolo_yaml_path'])
+        #     teacher_backbone, _ = build_yolo_model(self.cfg.yolo_cfg['yolo_yaml_path'])
+        #     self.teacher_type, self.student_type = 'yolo', 'yolo'
+        # else:
+        #     student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
+        #     self.teacher_type, self.student_type = 'vit', 'vit'
+
+
+        # student_model_dict["backbone"] = student_backbone
+        # if self.distill:
+        #     teacher_model_dict["backbone"] = distill_teacher['backbone']
+        #     teacher_embed_dim = cfg.teacher.embed_dim
+        #     self.teacher_type = distill_teacher['model_type']
+        # else:
+        #     teacher_model_dict["backbone"] = teacher_backbone
+        #     teacher_embed_dim = student_embed_dim
+        # logger.info(f"OPTIONS -- architecture : student_embed_dim: {student_embed_dim}")
+        # logger.info(f"OPTIONS -- architecture : teacher_embed_dim: {teacher_embed_dim}")
+
+        # if cfg.student.pretrained_weights:
+        #     chkpt = torch.load(cfg.student.pretrained_weights)
+        #     logger.info(f"OPTIONS -- pretrained weights: loading from {cfg.student.pretrained_weights}")
+        #     student_backbone.load_state_dict(chkpt["model"], strict=False)
+
+        student_backbone, teacher_backbone, student_embed_dim, teacher_embed_dim, self.teacher_type, self.student_type = build_teacher_student(cfg, distill_teacher)
+
 
 
         student_model_dict["backbone"] = student_backbone
-        if self.distill:
-            teacher_model_dict["backbone"] = distill_teacher['backbone']
-            teacher_embed_dim = cfg.teacher.embed_dim
-            self.teacher_type = distill_teacher['model_type']
-        else:
-            teacher_model_dict["backbone"] = teacher_backbone
-            teacher_embed_dim = student_embed_dim
-        logger.info(f"OPTIONS -- architecture : student_embed_dim: {student_embed_dim}")
-        logger.info(f"OPTIONS -- architecture : teacher_embed_dim: {teacher_embed_dim}")
-
-        if cfg.student.pretrained_weights:
-            chkpt = torch.load(cfg.student.pretrained_weights)
-            logger.info(f"OPTIONS -- pretrained weights: loading from {cfg.student.pretrained_weights}")
-            student_backbone.load_state_dict(chkpt["model"], strict=False)
-
-        # self.embed_dim = student_embed_dim
+        teacher_model_dict["backbone"] = teacher_backbone
         self.dino_out_dim = cfg.dino.head_n_prototypes
 
         self.do_dino = cfg.dino.loss_weight > 0
