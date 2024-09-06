@@ -51,7 +51,7 @@ def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
 
 
 class SSLMetaArch(nn.Module):
-    def __init__(self, cfg, yolo_cfg=None, distill_teacher=None):
+    def __init__(self, cfg, distill_teacher=None):
         super().__init__()
         self.cfg = cfg
         self.distill = not distill_teacher is None
@@ -60,15 +60,14 @@ class SSLMetaArch(nn.Module):
         student_model_dict = dict()
         teacher_model_dict = dict()
 
-        if yolo_cfg is None:
+        if 'yolo_cfg' in self.cfg:
+            student_backbone, student_embed_dim = build_yolo_model(self.cfg.yolo_cfg['yolo_yaml_path'])
+            teacher_backbone, _ = build_yolo_model(self.cfg.yolo_cfg['yolo_yaml_path'])
+            self.teacher_type, self.student_type = 'yolo', 'yolo'
+        else:
             student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
             self.teacher_type, self.student_type = 'vit', 'vit'
-        else:
-            student_backbone, student_embed_dim = build_yolo_model(yolo_cfg['yolo_yaml_path'])
-            teacher_backbone, _ = build_yolo_model(yolo_cfg['yolo_yaml_path'])
-            self.teacher_type, self.student_type = 'yolo', 'yolo'
 
-        self.yolo_cfg = yolo_cfg
 
         student_model_dict["backbone"] = student_backbone
         if self.distill:
@@ -298,9 +297,9 @@ class SSLMetaArch(nn.Module):
         )
         else:
             # masked_global_crops = apply_mask_on_batch_images(global_crops, masks, self.yolo_cfg['patch_size'], 7)
-            assert self.cfg.crops.global_crops_size % self.yolo_cfg['patch_size'] == 0, f"global crop size ({self.cfg.crops.global_crops_size}) should be divisible by patch size ({self.yolo_cfg['patch_size']})"
-            n_patch_grids = self.cfg.crops.global_crops_size // self.yolo_cfg['patch_size']
-            masked_global_crops = apply_mask_on_batch_images(global_crops, masks, self.yolo_cfg['patch_size'], n_patch_grids)
+            assert self.cfg.crops.global_crops_size % self.cfg.yolo_cfg['patch_size'] == 0, f"global crop size ({self.cfg.crops.global_crops_size}) should be divisible by patch size ({self.cfg.yolo_cfg['patch_size']})"
+            n_patch_grids = self.cfg.crops.global_crops_size // self.cfg.yolo_cfg['patch_size']
+            masked_global_crops = apply_mask_on_batch_images(global_crops, masks, self.cfg.yolo_cfg['patch_size'], n_patch_grids)
             student_global_backbone_output_dict = self.student.backbone(masked_global_crops)
             student_local_backbone_output_dict = self.student.backbone(local_crops)
 

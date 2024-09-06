@@ -337,7 +337,7 @@ def main(args):
         'model_type': 'vit',
         'backbone': torch.hub.load('facebookresearch/dinov2', cfg.teacher.arch),
     } if cfg.distill else None
-    model = SSLMetaArch(cfg, yolo_cfg=cfg.yolo_cfg, distill_teacher=distill_teacher).to(torch.device("cuda"))
+    model = SSLMetaArch(cfg, distill_teacher=distill_teacher).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
 
     logger.info("Model:\n{}".format(model))
