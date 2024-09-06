@@ -68,6 +68,7 @@ def setup(args):
     os.makedirs(args.output_dir, exist_ok=True)
     default_setup(args)
     apply_scaling_rules_to_cfg(cfg)
-    cfg.distill = cfg.get('distill', False)
+    # cfg.distill = cfg.get('distill', False)
+    # cfg.distill = 'distill_cfg' in cfg
     write_config(cfg, args.output_dir)
     return cfg

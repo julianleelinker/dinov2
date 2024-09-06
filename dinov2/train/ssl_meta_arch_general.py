@@ -42,6 +42,7 @@ def build_yolo_model(yolo_yaml_path, ch=3):
 
 
 def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
+    import ipdb; ipdb.set_trace()
     # unit = torch.ones((patch_size, patch_size), dtype=bool).to(mask.device)
     unit = torch.ones((patch_size, patch_size), dtype=bool).cuda(non_blocking=True)
     tmp_mask = mask.reshape((-1, n_patch_grids, n_patch_grids))
@@ -50,23 +51,33 @@ def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
     return images*ans
         
 
-def build_teacher_student(cfg, distill_teacher):
-    if 'yolo_cfg' in cfg:
-        student_backbone, student_embed_dim = build_yolo_model(cfg.yolo_cfg['yolo_yaml_path'])
-        teacher_backbone, _ = build_yolo_model(cfg.yolo_cfg['yolo_yaml_path'])
+def build_teacher_student(cfg):
+    if 'yolo' in cfg.student.arch:
+        student_backbone, student_embed_dim = build_yolo_model(cfg.student.yolo_yaml_path)
+        teacher_backbone, _ = build_yolo_model(cfg.student.yolo_yaml_path)
         teacher_type, student_type = 'yolo', 'yolo'
-    else:
+    elif 'vit' in cfg.student.arch:
         student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
         teacher_type, student_type = 'vit', 'vit'
+    else:
+        logger.error(f'Unknown arch in cfg.student: {cfg.student.arch}')
+        raise NotImplementedError
 
-
-    # student_model_dict["backbone"] = student_backbone
-    if cfg.distill:
-        teacher_backbone = distill_teacher['backbone']
-        teacher_embed_dim = cfg.teacher.embed_dim
-        teacher_type = distill_teacher['model_type']
+    if 'distill_cfg' in cfg:
+        if 'vit' in cfg.distill_cfg['teacher_arch']:
+            teacher_type = 'vit'
+            teacher_backbone = torch.hub.load('facebookresearch/dinov2', cfg.distill_cfg.teacher_arch)
+        elif 'yolo' in cfg.distill_cfg['teacher_arch']:
+            teacher_type = 'yolo'
+            logger.error(f'Need to implement YOLO teacher init for distillation')
+            raise NotImplementedError
+        else:
+            logger.error(f'Unknown teacher arch for distillation: {cfg.distill_cfg["teacher_arch"]}')
+            raise NotImplementedError
+        teacher_embed_dim = cfg.distill_cfg.teacher_embed_dim
     else:
         teacher_embed_dim = student_embed_dim
+
     logger.info(f"OPTIONS -- architecture : student_embed_dim: {student_embed_dim}")
     logger.info(f"OPTIONS -- architecture : teacher_embed_dim: {teacher_embed_dim}")
 
@@ -78,43 +89,17 @@ def build_teacher_student(cfg, distill_teacher):
 
 
 class SSLMetaArchGeneral(nn.Module):
-    def __init__(self, cfg, distill_teacher=None):
+    def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
-        self.distill = not distill_teacher is None
+        # self.distill = not distill_teacher is None
+        self.distill = 'distill_cfg' in cfg
         self.fp16_scaler = ShardedGradScaler() if cfg.compute_precision.grad_scaler else None
 
         student_model_dict = dict()
         teacher_model_dict = dict()
 
-        # if 'yolo_cfg' in self.cfg:
-        #     student_backbone, student_embed_dim = build_yolo_model(self.cfg.yolo_cfg['yolo_yaml_path'])
-        #     teacher_backbone, _ = build_yolo_model(self.cfg.yolo_cfg['yolo_yaml_path'])
-        #     self.teacher_type, self.student_type = 'yolo', 'yolo'
-        # else:
-        #     student_backbone, teacher_backbone, student_embed_dim = build_model_from_cfg(cfg)
-        #     self.teacher_type, self.student_type = 'vit', 'vit'
-
-
-        # student_model_dict["backbone"] = student_backbone
-        # if self.distill:
-        #     teacher_model_dict["backbone"] = distill_teacher['backbone']
-        #     teacher_embed_dim = cfg.teacher.embed_dim
-        #     self.teacher_type = distill_teacher['model_type']
-        # else:
-        #     teacher_model_dict["backbone"] = teacher_backbone
-        #     teacher_embed_dim = student_embed_dim
-        # logger.info(f"OPTIONS -- architecture : student_embed_dim: {student_embed_dim}")
-        # logger.info(f"OPTIONS -- architecture : teacher_embed_dim: {teacher_embed_dim}")
-
-        # if cfg.student.pretrained_weights:
-        #     chkpt = torch.load(cfg.student.pretrained_weights)
-        #     logger.info(f"OPTIONS -- pretrained weights: loading from {cfg.student.pretrained_weights}")
-        #     student_backbone.load_state_dict(chkpt["model"], strict=False)
-
-        student_backbone, teacher_backbone, student_embed_dim, teacher_embed_dim, self.teacher_type, self.student_type = build_teacher_student(cfg, distill_teacher)
-
-
+        student_backbone, teacher_backbone, student_embed_dim, teacher_embed_dim, self.teacher_type, self.student_type = build_teacher_student(cfg)
 
         student_model_dict["backbone"] = student_backbone
         teacher_model_dict["backbone"] = teacher_backbone
@@ -243,7 +228,6 @@ class SSLMetaArchGeneral(nn.Module):
         @torch.no_grad()
         def get_teacher_output():
             x, n_global_crops_teacher = global_crops, n_global_crops
-            # if self.yolo_cfg is None:
             if self.teacher_type == 'vit':
                 teacher_backbone_output_dict = self.teacher.backbone(x, is_training=True)
             else:
@@ -322,16 +306,14 @@ class SSLMetaArchGeneral(nn.Module):
         loss_dict = {}
 
         loss_accumulator = 0  # for backprop
-        # if self.yolo_cfg is None:
         if self.student_type == 'vit':
             student_global_backbone_output_dict, student_local_backbone_output_dict = self.student.backbone(
             [global_crops, local_crops], masks=[masks, None], is_training=True
         )
         else:
-            # masked_global_crops = apply_mask_on_batch_images(global_crops, masks, self.yolo_cfg['patch_size'], 7)
-            assert self.cfg.crops.global_crops_size % self.cfg.yolo_cfg['patch_size'] == 0, f"global crop size ({self.cfg.crops.global_crops_size}) should be divisible by patch size ({self.cfg.yolo_cfg['patch_size']})"
-            n_patch_grids = self.cfg.crops.global_crops_size // self.cfg.yolo_cfg['patch_size']
-            masked_global_crops = apply_mask_on_batch_images(global_crops, masks, self.cfg.yolo_cfg['patch_size'], n_patch_grids)
+            assert self.cfg.crops.global_crops_size % self.cfg.student['patch_size'] == 0, f"global crop size ({self.cfg.crops.global_crops_size}) should be divisible by patch size ({self.cfg.student['patch_size']})"
+            n_patch_grids = self.cfg.crops.global_crops_size // self.cfg.student['patch_size']
+            masked_global_crops = apply_mask_on_batch_images(global_crops, masks, self.cfg.student['patch_size'], n_patch_grids)
             student_global_backbone_output_dict = self.student.backbone(masked_global_crops)
             student_local_backbone_output_dict = self.student.backbone(local_crops)
 

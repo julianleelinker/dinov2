@@ -17,8 +17,8 @@ student:
   ffn_layer: swiglufused
   block_chunks: 4
 teacher:
-  arch: 'dinov2_vitl14'
-  embed_dim: 1024
+  # arch: 'dinov2_vitl14'
+  # embed_dim: 1024
   momentum_teacher: 0.994
 optim:
   epochs: 10
@@ -28,8 +28,9 @@ optim:
   layerwise_decay: 1.0
 crops:
   local_crops_size: 98
-distill:
-  True
+distill_cfg:
+  teacher_arch: 'dinov2_vitl14'
+  teacher_embed_dim: 1024
 
 # distill teacher arch
 # 'dinov2_vits14', embed_dim=   

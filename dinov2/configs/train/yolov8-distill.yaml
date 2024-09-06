@@ -6,7 +6,7 @@ ibot:
   separate_head: true
   head_n_prototypes: 131072
 train:
-  batch_size_per_gpu: 32 # yolov8-m
+  batch_size_per_gpu: 16 # yolov8-m
   # batch_size_per_gpu: 32 # yolov8-x
   dataset_path: ImageNet22k
   centering: sinkhorn_knopp
@@ -14,14 +14,15 @@ train:
   # OFFICIAL_EPOCH_LENGTH: 20000 # (number of images) Imagenet, batch_size 64
   OFFICIAL_EPOCH_LENGTH: 10000
 student:
-  arch: vit_large
+  arch: yolov8m
   patch_size: 32
-  drop_path_rate: 0.4
-  ffn_layer: swiglufused
-  block_chunks: 4
+  yolo_yaml_path: /home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml
+  # arch: vit_large
+  # patch_size: 32
+  # drop_path_rate: 0.4
+  # ffn_layer: swiglufused
+  # block_chunks: 4
 teacher:
-  arch: 'dinov2_vits14'
-  embed_dim: 384
   momentum_teacher: 0.994
 optim:
   # from ssl defualt config
@@ -86,10 +87,6 @@ compute_precision:
         param_dtype: fp16
         reduce_dtype: fp16
         buffer_dtype: fp16
-distill:
-  True
-yolo_cfg:
-  patch_size: 32
-  yolo_yaml_path: /home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml
-
-# if distill is True, then teacher arch, and embed_dim are required
+distill_cfg:
+  teacher_arch: 'dinov2_vits14'
+  teacher_embed_dim: 384

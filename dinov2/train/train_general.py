@@ -314,30 +314,14 @@ def do_train(cfg, model, resume=False):
 
 def main(args):
     # TODO distill
-        # TODO disitlled backbone as config
-        # TODO load a pretrained teacher
         # TODO consider YOLO as teacher case
+        # TODO load a self trained pretrained teacher (YOLO or ViT, refer PCA visualization)
 
-
-    # TODO yolo_path and yolo_yaml as args
-    # TODO dataset
+    # TODO dataset loading speed
 
     cfg = setup(args)
 
-    # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8n-ssl.yaml'
-    # yolo_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8s-ssl.yaml'
-
-    # yolo_yaml_path = '/home/julian/work/dinov2/ultralytics/ultralytics/cfg/models/v8/yolov8m-ssl.yaml'
-    # yolo_cfg = {
-    #     'patch_size': 32,
-    #     'yolo_yaml_path': yolo_yaml_path,
-    # }
-
-    distill_teacher = {
-        'model_type': 'vit',
-        'backbone': torch.hub.load('facebookresearch/dinov2', cfg.teacher.arch),
-    } if cfg.distill else None
-    model = SSLMetaArchGeneral(cfg, distill_teacher=distill_teacher).to(torch.device("cuda"))
+    model = SSLMetaArchGeneral(cfg).to(torch.device("cuda"))
     model.prepare_for_distributed_training()
 
     logger.info("Model:\n{}".format(model))
