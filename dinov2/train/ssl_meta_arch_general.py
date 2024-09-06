@@ -42,12 +42,11 @@ def build_yolo_model(yolo_yaml_path, ch=3):
 
 
 def apply_mask_on_batch_images(images, mask, patch_size, n_patch_grids):
-    import ipdb; ipdb.set_trace()
     # unit = torch.ones((patch_size, patch_size), dtype=bool).to(mask.device)
     unit = torch.ones((patch_size, patch_size), dtype=bool).cuda(non_blocking=True)
     tmp_mask = mask.reshape((-1, n_patch_grids, n_patch_grids))
-    ans = torch.kron(tmp_mask, unit)
-    ans = ans.reshape(-1, 1, n_patch_grids*patch_size, n_patch_grids*patch_size)
+    kron = torch.kron(tmp_mask, unit)
+    ans = kron.reshape(-1, 1, n_patch_grids*patch_size, n_patch_grids*patch_size)
     return images*ans
         
 
