@@ -1,8 +1,8 @@
 dino:
-  loss_weight: 0
+  loss_weight: 0.00001
   head_n_prototypes: 131072
   head_bottleneck_dim: 384
-  koleo_loss_weight: 0
+  koleo_loss_weight: 0.00001 # for testing no cls token settings
 ibot:
   separate_head: true
   head_n_prototypes: 131072

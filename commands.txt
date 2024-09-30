@@ -1,0 +1,9 @@
+# train normal
+torchrun --nproc_per_node=2 dinov2/train/train_general.py \
+    --config-file dinov2/configs/train/yolov8.yaml \
+    --output-dir /mnt/data-home/julian/tiip/dinov2/tiip-yolov8m-nocls-0906
+
+# train distill
+torchrun --nproc_per_node=1 dinov2/train/train_general.py \
+    --config-file dinov2/configs/train/yolov8-distill.yaml \
+    --output-dir /mnt/data-home/julian/tiip/dinov2/test
